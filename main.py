@@ -34,7 +34,7 @@ async def parse_pdf(request: Request, file: UploadFile = File(...), handwritten:
         return {"Message": f"Please import a PDF"}
     try:
         file_name = file.filename
-        filepath = f"/code/{file_name}"
+        filepath = f"/code/app/{file_name}"
         with open(filepath, "wb") as f:
             f.write(await file.read())
     except Exception as e:
@@ -45,6 +45,7 @@ async def parse_pdf(request: Request, file: UploadFile = File(...), handwritten:
         text = ""
         for page in reader.pages:
             text += page.extract_text() + "\n"
+        os.remove(filepath)
         return text
 
     client = request.app.state.google_client
@@ -52,19 +53,21 @@ async def parse_pdf(request: Request, file: UploadFile = File(...), handwritten:
         content = await image_file.read()
 
     pages = await asyncio.to_thread(convert_from_path, filepath, 500)
-
+    i=0
     for page in pages:
-        page.save('out.jpg', 'JPEG')
-
-    async with aiofiles.open("/code/out.jpg", 'rb') as image_file:
-        content = await image_file.read()
-
-    image_context = vision.ImageContext(language_hints=['en-t-i0-handwrit'])
-    image = vision.Image(content=content)
-    response = await asyncio.to_thread(client.document_text_detection, image=image, image_context=image_context)
-    text = response.full_text_annotation.text
-       
-    return text
+        page.save(f'{filepath}{i}.jpg', 'JPEG')
+        i+=1
+    text = []
+    for j in range(i):
+        async with aiofiles.open(f"{filepath}{j}.jpg", 'rb') as image_file:
+            content = await image_file.read()
+        image_context = vision.ImageContext(language_hints=['en-t-i0-handwrit'])
+        image = vision.Image(content=content)
+        response = await asyncio.to_thread(client.document_text_detection, image=image, image_context=image_context)
+        text.append(response.full_text_annotation.text)
+        os.remove(f"{filepath}{j}.jpg")
+    os.remove(filepath)
+    return " ".join(text)
     
 
 
