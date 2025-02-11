@@ -1,0 +1,24 @@
+services:
+  fastapi:
+    build: #building the image using Dockerfile
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: fastapi
+    volumes: #changes in current directory will affect app directory in container
+      - .:/code/app
+    ports: #expose port 3000 for outside use
+      - 3000:80
+
+  frontend:
+    build: 
+      context: .
+      dockerfile: ./Dockerfile.react
+    container_name: react_container
+    ports:
+      - 5173:5173
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      
+
+      
